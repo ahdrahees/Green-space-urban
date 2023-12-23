@@ -8,9 +8,6 @@ use std::{borrow::Cow, cell::RefCell};
 
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 type IdCell = Cell<u64, Memory>;
-// ... (existing imports and types)
-
-// Import necessary libraries and modules
 
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct GreenSpace {
@@ -21,7 +18,6 @@ struct GreenSpace {
 }
 
 impl Storable for GreenSpace {
-    // Implement Storable trait methods for serialization and deserialization
     fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
     }
@@ -52,7 +48,6 @@ thread_local! {
     ));
 }
 
-// Helper method to perform insert for GreenSpace
 fn do_insert_green_space(space: &GreenSpace) {
     GREEN_SPACE_STORAGE.with(|service| service.borrow_mut().insert(space.id, space.clone()));
 }
@@ -64,9 +59,8 @@ struct GreenSpaceUpdatePayload {
     description: String,
 }
 
-// Function to add a green space
 #[ic_cdk::update]
-fn add_green_space(space: GreenSpaceUpdatePayload) -> Option<GreenSpace> {
+fn add_green_space(space: GreenSpaceUpdatePayload) -> Result<GreenSpace, Error> {
     let id = GREEN_SPACE_ID_COUNTER
         .with(|counter| {
             let current_value = *counter.borrow().get();
@@ -76,16 +70,15 @@ fn add_green_space(space: GreenSpaceUpdatePayload) -> Option<GreenSpace> {
 
     let green_space = GreenSpace {
         id,
-        name: space.name,
-        location: space.location,
-        description: space.description,
+        name: space.name.clone(),
+        location: space.location.clone(),
+        description: space.description.clone(),
     };
 
     do_insert_green_space(&green_space);
-    Some(green_space)
+    Ok(green_space)
 }
 
-// Function to get a green space by ID
 #[ic_cdk::query]
 fn get_green_space(id: u64) -> Result<GreenSpace, Error> {
     match _get_green_space(&id) {
@@ -96,19 +89,17 @@ fn get_green_space(id: u64) -> Result<GreenSpace, Error> {
     }
 }
 
-// Internal function to get a green space by ID
 fn _get_green_space(id: &u64) -> Option<GreenSpace> {
     GREEN_SPACE_STORAGE.with(|s| s.borrow().get(id))
 }
 
-// Function to update a green space
 #[ic_cdk::update]
 fn update_green_space(id: u64, payload: GreenSpaceUpdatePayload) -> Result<GreenSpace, Error> {
     match GREEN_SPACE_STORAGE.with(|service| service.borrow().get(&id)) {
         Some(mut space) => {
-            space.name = payload.name;
-            space.location = payload.location;
-            space.description = payload.description;
+            space.name = payload.name.clone();
+            space.location = payload.location.clone();
+            space.description = payload.description.clone();
             do_insert_green_space(&space);
             Ok(space)
         }
@@ -121,7 +112,6 @@ fn update_green_space(id: u64, payload: GreenSpaceUpdatePayload) -> Result<Green
     }
 }
 
-// Function to delete a green space
 #[ic_cdk::update]
 fn delete_green_space(id: u64) -> Result<GreenSpace, Error> {
     match GREEN_SPACE_STORAGE.with(|service| service.borrow_mut().remove(&id)) {
@@ -135,7 +125,6 @@ fn delete_green_space(id: u64) -> Result<GreenSpace, Error> {
     }
 }
 
-// Function to get all green spaces
 #[ic_cdk::query]
 fn get_all_green_spaces() -> Result<Vec<GreenSpace>, Error> {
     GREEN_SPACE_STORAGE.with(|service| {
@@ -185,7 +174,7 @@ fn search_green_spaces_by_description(keyword: String) -> Result<Vec<GreenSpace>
 fn update_green_space_location(id: u64, new_location: String) -> Result<GreenSpace, Error> {
     match GREEN_SPACE_STORAGE.with(|service| service.borrow().get(&id)) {
         Some(mut space) => {
-            space.location = new_location;
+            space.location = new_location.clone();
             do_insert_green_space(&space);
             Ok(space)
         }
@@ -221,11 +210,9 @@ fn search_green_spaces_by_location(location: String) -> Result<Vec<GreenSpace>, 
     })
 }
 
-// Enum for error handling
 #[derive(candid::CandidType, Deserialize, Serialize)]
 enum Error {
     NotFound { msg: String },
 }
 
-// Export Candid interface definitions for the canister
 ic_cdk::export_candid!();
